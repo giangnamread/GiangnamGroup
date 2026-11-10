@@ -389,7 +389,7 @@
 
                 <div class="flex justify-end gap-3 pt-3 border-t">
                     <button type="button" onclick="closeModal()" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 transition font-bold">Hủy</button>
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-md">Đăng Tin Ngay (Lưu `giangnam-dauloc-146`)</button>
+                    <button type="button" onclick="submitPropertyForm()" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-md">Đăng Tin Ngay (Lưu `giangnam-dauloc-146`)</button>
                 </div>
             </form>
         </div>
@@ -796,19 +796,40 @@
         }
 
         // Đăng tin mới lưu đám mây Firestore vào `giangnam-dauloc-146`
-        window.handlePostSubmit = async function(e) {
-            e.preventDefault();
+        window.submitPropertyForm = async function() {
+            const title = document.getElementById('prop-title').value.trim();
+            const district = document.getElementById('prop-district').value;
+            const ward = document.getElementById('prop-ward').value;
+            const address = document.getElementById('prop-address').value.trim();
+            const type = document.getElementById('prop-type').value;
+            const areaVal = document.getElementById('prop-area').value.trim();
+            const priceVal = document.getElementById('prop-price').value.trim();
+            const phone = document.getElementById('prop-phone').value.trim();
+            const desc = document.getElementById('prop-desc').value.trim();
+
+            if (!title || !address || !areaVal || !priceVal || !phone || !desc) {
+                showToast("Vui lòng điền đầy đủ các thông tin bắt buộc!");
+                return;
+            }
+
+            const rawPrice = parseFloat(priceVal) || 0;
+            let parsedPrice = rawPrice;
+            if (parsedPrice > 0 && parsedPrice < 100000000) {
+                parsedPrice = parsedPrice < 1000 ? parsedPrice * 1000000 : parsedPrice;
+            }
+
             const newListing = {
-                title: document.getElementById('prop-title').value,
-                district: document.getElementById('prop-district').value,
-                ward: document.getElementById('prop-ward').value,
-                address: document.getElementById('prop-address').value,
-                type: document.getElementById('prop-type').value,
-                area: parseFloat(document.getElementById('prop-area').value),
-                price: parseFloat(document.getElementById('prop-price').value),
-                phone: document.getElementById('prop-phone').value || "0915050065",
+                id: Date.now(),
+                title: title,
+                district: district,
+                ward: ward,
+                address: address,
+                type: type,
+                area: parseFloat(areaVal) || 100,
+                price: parsedPrice,
+                phone: phone || "0915050065",
                 owner: "Chính chủ GiangNamGroup",
-                desc: document.getElementById('prop-desc').value,
+                desc: desc,
                 date: new Date().toISOString().split('T')[0],
                 image: "https://placehold.co/600x400/059669/ffffff?text=GiangNam+New+Listing"
             };
@@ -817,16 +838,14 @@
                 if (db) {
                     const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'giangnam_listings');
                     await addDoc(colRef, newListing);
-                    showToast("Đã lưu tin rao lên đám mây `giangnam-dauloc-146` thành công!");
-                } else {
-                    listings.unshift({ id: Date.now(), ...newListing });
-                    renderListings(listings);
-                    showToast("Đã đăng tin thành công (Chế độ cục bộ)!");
                 }
             } catch (err) {
-                console.error("Lỗi đăng tin:", err);
-                showToast("Lỗi khi lưu trữ đám mây.");
+                console.warn("Lưu đám mây gặp sự cố, chuyển sang bộ nhớ cục bộ:", err);
             }
+
+            listings.unshift(newListing);
+            renderListings(listings);
+            showToast("Bạn đã đăng tin thành công!");
 
             closeModal();
             document.getElementById('property-form').reset();
